@@ -383,9 +383,14 @@ public class TraversalOpProcessor extends AbstractOpProcessor {
                         break;
                     }
 
+                    // track whether there is anything left in the iterator because it needs to be accessed after
+                    // the transaction could be closed - in that case a call to hasNext() could open a new transaction
+                    // unintentionally
+                    final boolean moreInIterator = itty.hasNext();
+
                     try {
                         // only need to reset the aggregation list if there's more stuff to write
-                        if (itty.hasNext())
+                        if (moreInIterator)
                             aggregate = new ArrayList<>(resultIterationBatchSize);
                         else {
                             // iteration and serialization are both complete which means this finished successfully. note that
@@ -407,7 +412,7 @@ public class TraversalOpProcessor extends AbstractOpProcessor {
                         throw ex;
                     }
 
-                    if (!itty.hasNext()) iterateComplete(nettyContext, msg, itty);
+                    if (!moreInIterator) iterateComplete(nettyContext, msg, itty);
 
                     // the flush is called after the commit has potentially occurred.  in this way, if a commit was
                     // required then it will be 100% complete before the client receives it. the "frame" at this point
